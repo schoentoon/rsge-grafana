@@ -5,6 +5,7 @@ import { MyDataSourceOptions, MyQuery } from './types';
 class Item {
   ItemID = 0;
   Name = '';
+  Image = '';
 }
 
 export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptions> {
@@ -19,7 +20,12 @@ export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptio
     return this.postResource('searchItems', { query: query }).then((items: Item[]) => {
       return items
         ? Object.entries(items).map(
-            ([_, item]) => ({ label: item.Name, value: item.ItemID.toString() } as SelectableValue<string>)
+            ([_, item]) =>
+              ({
+                label: item.Name,
+                value: item.ItemID.toString(),
+                imgUrl: item.Image,
+              } as SelectableValue<string>)
           )
         : [];
     });
