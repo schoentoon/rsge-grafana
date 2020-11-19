@@ -1,7 +1,7 @@
-import { DataQuery, DataSourceJsonData } from "@grafana/data";
+import { DataQuery, DataSourceJsonData } from '@grafana/data';
 
 export interface MyQuery extends DataQuery {
-  itemID: number;
+  itemID: string;
 }
 
 export const defaultQuery: Partial<MyQuery> = {};

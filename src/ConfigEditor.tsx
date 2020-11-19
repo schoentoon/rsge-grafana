@@ -1,12 +1,11 @@
-import React, { ChangeEvent, PureComponent } from "react";
-import { LegacyForms } from "@grafana/ui";
-import { DataSourcePluginOptionsEditorProps } from "@grafana/data";
-import { MyDataSourceOptions, MySecureJsonData } from "./types";
+import React, { ChangeEvent, PureComponent } from 'react';
+import { LegacyForms } from '@grafana/ui';
+import { DataSourcePluginOptionsEditorProps } from '@grafana/data';
+import { MyDataSourceOptions, MySecureJsonData } from './types';
 
 const { SecretFormField, FormField } = LegacyForms;
 
-interface Props
-  extends DataSourcePluginOptionsEditorProps<MyDataSourceOptions> {}
+interface Props extends DataSourcePluginOptionsEditorProps<MyDataSourceOptions> {}
 
 interface State {}
 
@@ -15,7 +14,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
     const { onOptionsChange, options } = this.props;
     const jsonData = {
       ...options.jsonData,
-      path: event.target.value
+      path: event.target.value,
     };
     onOptionsChange({ ...options, jsonData });
   };
@@ -26,8 +25,8 @@ export class ConfigEditor extends PureComponent<Props, State> {
     onOptionsChange({
       ...options,
       secureJsonData: {
-        apiKey: event.target.value
-      }
+        apiKey: event.target.value,
+      },
     });
   };
 
@@ -37,12 +36,12 @@ export class ConfigEditor extends PureComponent<Props, State> {
       ...options,
       secureJsonFields: {
         ...options.secureJsonFields,
-        apiKey: false
+        apiKey: false,
       },
       secureJsonData: {
         ...options.secureJsonData,
-        apiKey: ""
-      }
+        apiKey: '',
+      },
     });
   };
 
@@ -59,7 +58,7 @@ export class ConfigEditor extends PureComponent<Props, State> {
             labelWidth={6}
             inputWidth={20}
             onChange={this.onPathChange}
-            value={jsonData.path || ""}
+            value={jsonData.path || ''}
             placeholder="json field returned to frontend"
           />
         </div>
@@ -67,10 +66,8 @@ export class ConfigEditor extends PureComponent<Props, State> {
         <div className="gf-form-inline">
           <div className="gf-form">
             <SecretFormField
-              isConfigured={
-                (secureJsonFields && secureJsonFields.apiKey) as boolean
-              }
-              value={secureJsonData.apiKey || ""}
+              isConfigured={(secureJsonFields && secureJsonFields.apiKey) as boolean}
+              value={secureJsonData.apiKey || ''}
               label="API Key"
               placeholder="secure json field (backend only)"
               labelWidth={6}

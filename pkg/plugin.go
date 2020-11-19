@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
+	"github.com/grafana/grafana-plugin-sdk-go/backend/resource/httpadapter"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 
 	"gitlab.com/schoentoon/rs-tools/lib/ge"
@@ -24,12 +27,20 @@ func newDatasource() datasource.ServeOpts {
 	im := datasource.NewInstanceManager(newDataSourceInstance)
 	ds := &GeDataSource{
 		im: im,
-		ge: &ge.Ge{Client: http.DefaultClient},
+		ge: &ge.Ge{
+			Client:    http.DefaultClient,
+			UserAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:82.0) Gecko/20100101 Firefox/82.0",
+		},
 	}
 
+	mux := http.NewServeMux()
+	mux.HandleFunc("/searchItems", ds.searchItems)
+
+	httpResourceHandler := httpadapter.New(mux)
+
 	return datasource.ServeOpts{
-		QueryDataHandler:   ds,
-		CheckHealthHandler: ds,
+		CallResourceHandler: httpResourceHandler,
+		QueryDataHandler:    ds,
 	}
 }
 
@@ -66,7 +77,7 @@ func (td *GeDataSource) QueryData(ctx context.Context, req *backend.QueryDataReq
 }
 
 type queryModel struct {
-	ItemID int64 `json:"itemID"`
+	ItemID string `json:"itemID"`
 }
 
 func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) backend.DataResponse {
@@ -80,7 +91,13 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 		return response
 	}
 
-	graph, err := td.ge.PriceGraph(qm.ItemID)
+	id, err := strconv.ParseInt(qm.ItemID, 10, 64)
+	if err != nil {
+		response.Error = err
+		return response
+	}
+
+	graph, err := td.ge.PriceGraph(id)
 	if err != nil {
 		response.Error = err
 		return response
@@ -118,18 +135,6 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 	return response
 }
 
-// CheckHealth handles health checks sent from Grafana to the plugin.
-// The main use case for these health checks is the test button on the
-// datasource configuration page which allows users to verify that
-// a datasource is working as expected.
-func (td *GeDataSource) CheckHealth(ctx context.Context, req *backend.CheckHealthRequest) (*backend.CheckHealthResult, error) {
-	// TODO
-	return &backend.CheckHealthResult{
-		Status:  backend.HealthStatusOk,
-		Message: "Data source is working",
-	}, nil
-}
-
 type instanceSettings struct {
 	httpClient *http.Client
 }
@@ -143,4 +148,35 @@ func newDataSourceInstance(setting backend.DataSourceInstanceSettings) (instance
 func (s *instanceSettings) Dispose() {
 	// Called before creating a new instance to allow plugin authors
 	// to cleanup.
+}
+
+func (td *GeDataSource) searchItems(w http.ResponseWriter, req *http.Request) {
+	log.DefaultLogger.Debug("Received resource call", "url", req.URL.String(), "method", req.Method)
+	if req.Method != http.MethodPost {
+		return
+	}
+
+	r := struct {
+		Query string `json:"query"`
+	}{}
+
+	err := json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.DefaultLogger.Debug(fmt.Sprintf("Searching for '%s'", r.Query))
+	results, err := td.ge.SearchItems(r.Query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.DefaultLogger.Debug(fmt.Sprintf("results: %#v", results))
+
+	err = json.NewEncoder(w).Encode(results)
+	if err != nil {
+		log.DefaultLogger.Error("Json encoding error.. ", err)
+	}
 }
