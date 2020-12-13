@@ -3,9 +3,9 @@ import { DataSourceWithBackend } from '@grafana/runtime';
 import { MyDataSourceOptions, MyQuery } from './types';
 
 class Item {
-  ItemID = 0;
-  Name = '';
-  Image = '';
+  id = 0;
+  name = '';
+  icon = '';
 }
 
 export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptions> {
@@ -22,9 +22,9 @@ export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptio
         ? Object.entries(items).map(
             ([_, item]) =>
               ({
-                label: item.Name,
-                value: item.ItemID.toString(),
-                imgUrl: item.Image,
+                label: item.name,
+                value: item.id.toString(),
+                imgUrl: item.icon,
               } as SelectableValue<string>)
           )
         : [];

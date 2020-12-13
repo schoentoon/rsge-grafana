@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 
 	"gitlab.com/schoentoon/rs-tools/lib/ge"
+	"gitlab.com/schoentoon/rs-tools/lib/ge/itemdb"
 )
 
 // newDatasource returns datasource.ServeOpts.
@@ -25,12 +27,25 @@ func newDatasource() datasource.ServeOpts {
 	// into `NewInstanceManger` is called when the instance is created
 	// for the first time or when a datasource configuration changed.
 	im := datasource.NewInstanceManager(newDataSourceInstance)
+	ge := &ge.Ge{
+		Client:    http.DefaultClient,
+		UserAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:82.0) Gecko/20100101 Firefox/82.0",
+	}
+	f, err := os.OpenFile("/data/itemdb.ljson", os.O_RDONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	idb, err := itemdb.NewFromReader(f)
+	if err != nil {
+		panic(err)
+	}
+
 	ds := &GeDataSource{
-		im: im,
-		ge: &ge.Ge{
-			Client:    http.DefaultClient,
-			UserAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:82.0) Gecko/20100101 Firefox/82.0",
-		},
+		im:     im,
+		ge:     ge,
+		search: idb,
 	}
 
 	mux := http.NewServeMux()
@@ -51,7 +66,8 @@ type GeDataSource struct {
 	// but a best practice that we recommend that you follow.
 	im instancemgmt.InstanceManager
 
-	ge ge.GeInterface
+	ge     ge.GeInterface
+	search ge.SearchItemInterface
 }
 
 // QueryData handles multiple queries and returns multiple responses.
@@ -167,7 +183,7 @@ func (td *GeDataSource) searchItems(w http.ResponseWriter, req *http.Request) {
 	}
 
 	log.DefaultLogger.Debug(fmt.Sprintf("Searching for '%s'", r.Query))
-	results, err := td.ge.SearchItems(r.Query)
+	results, err := td.search.SearchItems(r.Query)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
