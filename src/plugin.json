@@ -1,7 +1,7 @@
 {
   "type": "datasource",
   "name": "rsge",
-  "id": "schoentoon-rsge",
+  "id": "schoentoon-rsge-datasource",
   "metrics": true,
   "backend": true,
   "executable": "gpx_rsge",

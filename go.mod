@@ -1,10 +1,8 @@
 module github.com/grafana/simple-datasource-backend
 
-go 1.14
+go 1.15
 
 require (
 	github.com/grafana/grafana-plugin-sdk-go v0.65.0
-	gitlab.com/schoentoon/rs-tools v0.0.0-00010101000000-000000000000
+	gitlab.com/schoentoon/rs-tools v0.0.0-20201213230541-b4a535327645
 )
-
-replace gitlab.com/schoentoon/rs-tools => ../rs-tools
