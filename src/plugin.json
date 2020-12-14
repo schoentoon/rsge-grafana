@@ -4,6 +4,7 @@
   "id": "schoentoon-rsge-datasource",
   "metrics": true,
   "backend": true,
+  "alerting": true,
   "executable": "gpx_rsge",
   "info": {
     "description": "",
