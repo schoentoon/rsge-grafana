@@ -113,6 +113,12 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 		return response
 	}
 
+	item, err := td.search.GetItem(id)
+	if err != nil {
+		response.Error = err
+		return response
+	}
+
 	graph, err := td.ge.PriceGraph(id)
 	if err != nil {
 		response.Error = err
@@ -143,7 +149,7 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 	frame.Fields = append(frame.Fields, data.NewField("time", nil, times))
 
 	// add values
-	frame.Fields = append(frame.Fields, data.NewField("values", nil, prices))
+	frame.Fields = append(frame.Fields, data.NewField(item.Name, nil, prices))
 
 	// add the frames to the response
 	response.Frames = append(response.Frames, frame)
