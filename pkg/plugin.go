@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dgraph-io/ristretto"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
@@ -42,10 +43,21 @@ func newDatasource() datasource.ServeOpts {
 		panic(err)
 	}
 
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1 * 1024 * 1024,  // 1MB
+		MaxCost:     32 * 1024 * 1024, // 32MB
+		BufferItems: 64,
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	ds := &GeDataSource{
 		im:     im,
 		ge:     ge,
 		search: idb,
+
+		cache: cache,
 	}
 
 	mux := http.NewServeMux()
@@ -68,6 +80,19 @@ type GeDataSource struct {
 
 	ge     ge.GeInterface
 	search ge.SearchItemInterface
+
+	cache *ristretto.Cache
+}
+
+// calculate the size in bytes so we know how much this would cost for the cache
+func graphToSize(g *ge.Graph) int64 {
+	size := 8 // the size of the ItemID
+
+	// 24 is the size of time.Time and 4 is the size of int32
+	// we just multiply this by the amount of entries in the graph
+	size += ((24 + 4) * len(g.Graph))
+
+	return int64(size)
 }
 
 // QueryData handles multiple queries and returns multiple responses.
@@ -119,10 +144,24 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 		return response
 	}
 
-	graph, err := td.ge.PriceGraph(id)
-	if err != nil {
-		response.Error = err
-		return response
+	var graph *ge.Graph
+
+	val, found := td.cache.Get(id)
+	if !found {
+		graph, err = td.ge.PriceGraph(id)
+		if err != nil {
+			response.Error = err
+			return response
+		}
+
+		// Ideally we would set the ttl til the next ge update, but as those are fairly
+		// random we don't. I should however investigate how close the reported times
+		// are to the actual update times. If they consistently happen like 12+ hours later
+		// we can at least still cache it for that long. For now caching for just 5 minutes
+		// will already give us quite a performance boost with repeated queries.
+		td.cache.SetWithTTL(id, graph, graphToSize(graph), time.Minute*5)
+	} else {
+		graph = val.(*ge.Graph)
 	}
 
 	// create data frame response
