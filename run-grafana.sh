@@ -1,7 +1,11 @@
 #!/bin/bash
 
+mkdir -p ./tmp/grafana
+
+sudo chown 472:472 -R ./tmp
+
 docker run -it --rm -p 3000:3000 \
-    -v /tmp/grafana:/var/lib/grafana \
+    -v "$(pwd)/tmp/grafana:/var/lib/grafana" \
     -v "$(pwd):/var/lib/grafana/plugins/rsge/" \
     -v "/home/schoentoon/.local/share/rscli/itemdb.ljson:/data/itemdb.ljson:ro" \
     -e "GF_LOG_LEVEL=debug" \
