@@ -95,6 +95,25 @@ func graphToSize(g *ge.Graph) int64 {
 	return int64(size)
 }
 
+func graphToTTL(now time.Time, g *ge.Graph) time.Duration {
+	now = now.UTC()
+
+	latest, _ := g.LatestPrice()
+
+	// if the latest price update is from today we will cache till the end of today, which sadly seems
+	// to happen rather randomly throughout the day, sometimes it happens 5-ish hours after midnight UTC
+	// sometimes it happens 21 hours after midnight UTC. However it never updates twice per day, so once
+	// it updated it should be safe to just cache it till the end of the day (UTC)
+	if now.Year() == latest.Year() && now.Month() == latest.Month() && now.Day() == latest.Day() {
+		// we could use time.Until here, but using Sub on latest + 1 day makes this function at least testable
+		return latest.Add(time.Hour * 24).Sub(now)
+	}
+
+	// otherwise we're just going to cache it for 1 minute, would mostly prevent unnecessary calls to the
+	// runescape ge api
+	return time.Minute
+}
+
 // QueryData handles multiple queries and returns multiple responses.
 // req contains the queries []DataQuery (where each query contains RefID as a unique identifer).
 // The QueryDataResponse contains a map of RefID to the response for each query, and each response
@@ -154,12 +173,7 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 			return response
 		}
 
-		// Ideally we would set the ttl til the next ge update, but as those are fairly
-		// random we don't. I should however investigate how close the reported times
-		// are to the actual update times. If they consistently happen like 12+ hours later
-		// we can at least still cache it for that long. For now caching for just 5 minutes
-		// will already give us quite a performance boost with repeated queries.
-		td.cache.SetWithTTL(id, graph, graphToSize(graph), time.Minute*5)
+		td.cache.SetWithTTL(id, graph, graphToSize(graph), graphToTTL(time.Now(), graph))
 	} else {
 		graph = val.(*ge.Graph)
 	}
