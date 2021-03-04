@@ -1,18 +1,18 @@
-# Grafana Data Source Backend Plugin Template
+# RSGE-Grafana
 
-[![CircleCI](https://circleci.com/gh/grafana/simple-datasource-backend/tree/master.svg?style=svg)](https://circleci.com/gh/grafana/simple-datasource-backend/tree/master)
+[![GitlabCI](https://gitlab.com/schoentoon/rsge-grafana/badges/master/pipeline.svg)](https://gitlab.com/schoentoon/rsge-grafana)
 
-This template is a starting point for building Grafana Data Source Backend Plugins
+This data source plugin will allow plotting of RuneScape Grand Exchange prices directly in Grafana.
 
-## What is Grafana Data Source Backend Plugin?
+## Installation
 
-Grafana supports a wide range of data sources, including Prometheus, MySQL, and even Datadog. There’s a good chance you can already visualize metrics from the systems you have set up. In some cases, though, you already have an in-house metrics solution that you’d like to add to your Grafana dashboards. Grafana Data Source Plugins enables integrating such solutions with Grafana.
+In the case of a grafana installation through docker, you would just have to add the following environment variables
+```
+GF_INSTALL_PLUGINS=https://schoentoon.gitlab.io/rsge-grafana/schoentoon-rsge-datasource-1.0.0.zip;rsge-datasource
+GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=schoentoon-rsge-datasource
+```
 
-For more information about backend plugins, refer to the documentation on [Backend plugins](https://grafana.com/docs/grafana/latest/developers/plugins/backend/).
-
-## Getting started
-
-A data source backend plugin consists of both frontend and backend components.
+Installation on other installation types will probably work fairly similar. Afterwards simply start grafana, login as admin and configure a new datasource with this plugin as the datatype.
 
 ### Frontend
 
@@ -51,11 +51,3 @@ mage -v
 ```BASH
 mage -l
 ```
-
-## Learn more
-
-- [Build a data source backend plugin tutorial](https://grafana.com/tutorials/build-a-data-source-backend-plugin)
-- [Grafana documentation](https://grafana.com/docs/)
-- [Grafana Tutorials](https://grafana.com/tutorials/) - Grafana Tutorials are step-by-step guides that help you make the most of Grafana
-- [Grafana UI Library](https://developers.grafana.com/ui) - UI components to help you build interfaces using Grafana Design System
-- [Grafana plugin SDK for Go](https://grafana.com/docs/grafana/latest/developers/plugins/backend/grafana-plugin-sdk-for-go/)
