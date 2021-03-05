@@ -144,15 +144,18 @@ func (td *GeDataSource) QueryData(ctx context.Context, req *backend.QueryDataReq
 
 	go func() {
 		wg.Wait()
-		//close(ch)
 	}()
 
 	for range req.Queries {
-		//for task := range ch {
-		task := <-ch
-		// save the response in a hashmap
-		// based on with RefID as identifier
-		response.Responses[task.q.RefID] = task.d
+		select {
+		case task := <-ch:
+			// save the response in a hashmap
+			// based on with RefID as identifier
+			response.Responses[task.q.RefID] = task.d
+		case <-ctx.Done():
+			// if the context finishes before all the requests we just bail out
+			return response, nil
+		}
 	}
 
 	return response, nil
