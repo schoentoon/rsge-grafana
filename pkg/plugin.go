@@ -8,8 +8,10 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/dgraph-io/ristretto"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/datasource"
@@ -124,13 +126,33 @@ func (td *GeDataSource) QueryData(ctx context.Context, req *backend.QueryDataReq
 	// create response struct
 	response := backend.NewQueryDataResponse()
 
+	type task struct {
+		d backend.DataResponse
+		q backend.DataQuery
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(req.Queries))
+	ch := make(chan task, len(req.Queries))
+
 	// loop over queries and execute them individually.
 	for _, q := range req.Queries {
-		res := td.query(ctx, q)
+		go func(q backend.DataQuery) {
+			ch <- task{d: td.query(&wg, ctx, q), q: q}
+		}(q)
+	}
 
+	go func() {
+		wg.Wait()
+		//close(ch)
+	}()
+
+	for range req.Queries {
+		//for task := range ch {
+		task := <-ch
 		// save the response in a hashmap
 		// based on with RefID as identifier
-		response.Responses[q.RefID] = res
+		response.Responses[task.q.RefID] = task.d
 	}
 
 	return response, nil
@@ -140,7 +162,8 @@ type queryModel struct {
 	ItemID string `json:"itemID"`
 }
 
-func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) backend.DataResponse {
+func (td *GeDataSource) query(wg *sync.WaitGroup, ctx context.Context, query backend.DataQuery) backend.DataResponse {
+	defer wg.Done()
 	// Unmarshal the json into our queryModel
 	var qm queryModel
 
@@ -167,7 +190,10 @@ func (td *GeDataSource) query(ctx context.Context, query backend.DataQuery) back
 
 	val, found := td.cache.Get(id)
 	if !found {
-		graph, err = td.ge.PriceGraph(id)
+		err := backoff.Retry(func() error {
+			graph, err = td.ge.PriceGraph(id)
+			return err
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 3))
 		if err != nil {
 			response.Error = err
 			return response

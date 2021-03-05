@@ -3,6 +3,7 @@ module github.com/grafana/simple-datasource-backend
 go 1.15
 
 require (
+	github.com/cenkalti/backoff/v4 v4.1.0
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/grafana/grafana-plugin-sdk-go v0.65.0
 	github.com/stretchr/testify v1.6.1
