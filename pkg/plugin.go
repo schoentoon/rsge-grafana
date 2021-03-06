@@ -34,15 +34,35 @@ func newDatasource() datasource.ServeOpts {
 		Client:    http.DefaultClient,
 		UserAgent: "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:82.0) Gecko/20100101 Firefox/82.0",
 	}
-	f, err := os.OpenFile("/data/itemdb.ljson", os.O_RDONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
 
-	idb, err := itemdb.NewFromReader(f)
-	if err != nil {
-		panic(err)
+	var idb *itemdb.DB
+
+	// we first try to open a local copy of the itemdb
+	f, err := os.OpenFile("/data/itemdb.ljson", os.O_RDONLY, 0644)
+	if err == nil {
+		// if we managed to open the file, we try to construct an in-memory database from that
+		defer f.Close()
+
+		idb, err = itemdb.NewFromReader(f)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		// if we fail to do so, we simply fetch it from gitlab pages construct the local database from that instead
+		// we will however let the user know about this plus the error of opening the file, to help them out if they
+		// actually wanted to set up a local file anyway
+		log.DefaultLogger.Info("No local item db found", "error", err)
+		log.DefaultLogger.Info("Fetching item db from https://schoentoon.gitlab.io/rs-tools/items.ljson")
+		res, err := http.Get("https://schoentoon.gitlab.io/rs-tools/items.ljson")
+		if err != nil {
+			panic(err)
+		}
+		defer res.Body.Close()
+
+		idb, err = itemdb.NewFromReader(res.Body)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	cache, err := ristretto.NewCache(&ristretto.Config{
