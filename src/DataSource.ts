@@ -30,4 +30,13 @@ export class DataSource extends DataSourceWithBackend<MyQuery, MyDataSourceOptio
         : [];
     });
   }
+
+  async idToItem(query: number | undefined): Promise<Item | undefined> {
+    if (query === undefined) {
+      return undefined;
+    }
+    return this.postResource('idToItem', { query: query }).then((item: Item) => {
+      return item;
+    });
+  }
 }

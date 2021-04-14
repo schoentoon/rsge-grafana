@@ -13,13 +13,46 @@ interface LastQuery {
 
 export const QueryEditor: ComponentType<Props> = ({ datasource, onChange, onRunQuery, query }) => {
   const [search, setSearch] = React.useState<SelectableValue<string>>();
+  const [blur, setBlur] = React.useState<boolean>(false);
 
   const [lastQuery, setLastQuery] = React.useState<LastQuery | null>(null);
 
   const [searchOptions, setSearchOptions] = React.useState<Array<SelectableValue<string>>>([]);
   const [isSearchOptionsLoading, setIsSearchOptionsLoading] = React.useState<boolean>(false);
+  const [isInitial, setInitial] = React.useState<boolean>(true);
+
+  if (isInitial) {
+    // this is purely to load name and icon on initial load of an already existing panel
+    if (query !== undefined && query.itemID !== undefined) {
+      var id = parseInt(query.itemID, 10);
+      if (!isNaN(id)) {
+        datasource.idToItem(id).then(
+          result => {
+            if (result !== undefined) {
+              setSearch({
+                label: result.name,
+                value: result.id.toString(),
+                imgUrl: result.icon,
+              });
+              setBlur(true);
+            }
+          },
+          response => {
+            setSearch({ label: "Configured item doesn't exist??", value: '' });
+            setSearchOptions([]);
+
+            throw new Error(response.statusText);
+          }
+        );
+      }
+    }
+  }
 
   const loadSearch = React.useCallback(() => {
+    if (isInitial || blur) {
+      setInitial(false);
+      return undefined;
+    }
     var q = '';
     if (search !== undefined && search.value !== undefined) {
       q = search.value;
@@ -46,17 +79,20 @@ export const QueryEditor: ComponentType<Props> = ({ datasource, onChange, onRunQ
         throw new Error(response.statusText);
       }
     );
-  }, [datasource, search, query]);
+  }, [datasource, search, query, blur, isInitial, setInitial]);
 
   const refreshSearchOptions = React.useCallback(() => {
     setIsSearchOptionsLoading(true);
-    loadSearch()
-      .then(i => {
-        setSearchOptions(i);
-      })
-      .finally(() => {
-        setIsSearchOptionsLoading(false);
-      });
+    var searches = loadSearch();
+    if (searches !== undefined) {
+      searches
+        .then(i => {
+          setSearchOptions(i);
+        })
+        .finally(() => {
+          setIsSearchOptionsLoading(false);
+        });
+    }
   }, [loadSearch, setSearchOptions, setIsSearchOptionsLoading]);
 
   // Initializing metric options
@@ -99,6 +135,7 @@ export const QueryEditor: ComponentType<Props> = ({ datasource, onChange, onRunQ
             placeholder="Select item"
             allowCustomValue
             value={search}
+            disabled={blur}
             onChange={v => {
               setSearch(v);
             }}

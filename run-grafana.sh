@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# The default password on the grafana/grafana image is admin/admin
+
 mkdir -p ./tmp/grafana
 
 sudo chown 472:472 -R ./tmp

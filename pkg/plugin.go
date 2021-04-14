@@ -84,6 +84,7 @@ func newDatasource() datasource.ServeOpts {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/searchItems", ds.searchItems)
+	mux.HandleFunc("/idToItem", ds.idToItem)
 
 	httpResourceHandler := httpadapter.New(mux)
 
@@ -300,6 +301,37 @@ func (td *GeDataSource) searchItems(w http.ResponseWriter, req *http.Request) {
 	log.DefaultLogger.Debug(fmt.Sprintf("results: %#v", results))
 
 	err = json.NewEncoder(w).Encode(results)
+	if err != nil {
+		log.DefaultLogger.Error("Json encoding error.. ", err)
+	}
+}
+
+func (td *GeDataSource) idToItem(w http.ResponseWriter, req *http.Request) {
+	log.DefaultLogger.Debug("Received resource call", "url", req.URL.String(), "method", req.Method)
+	if req.Method != http.MethodPost {
+		return
+	}
+
+	r := struct {
+		Query int64 `json:"query"`
+	}{}
+
+	err := json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.DefaultLogger.Debug(fmt.Sprintf("Searching item with ID %d", r.Query))
+	item, err := td.search.GetItem(r.Query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.DefaultLogger.Debug(fmt.Sprintf("results: %#v", item))
+
+	err = json.NewEncoder(w).Encode(item)
 	if err != nil {
 		log.DefaultLogger.Error("Json encoding error.. ", err)
 	}
