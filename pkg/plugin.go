@@ -8,6 +8,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -200,6 +201,11 @@ func (td *GeDataSource) query(wg *sync.WaitGroup, ctx context.Context, query bac
 
 	id, err := strconv.ParseInt(qm.ItemID, 10, 64)
 	if err != nil {
+		// if for some reason no item id is set but we are queried anyway this would bubble into an error
+		// just to be nice we are completely ignoring this and not returning the error to the user
+		if strings.TrimSpace(qm.ItemID) == "" {
+			return response
+		}
 		response.Error = err
 		return response
 	}
